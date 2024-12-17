@@ -78,8 +78,26 @@ function lazygrep.search(opts)
     },
     previewer = previewers.new_buffer_previewer({
       define_preview = function(self, entry, status)
-        conf.buffer_previewer_maker(entry.filename, self.state.bufnr, status)
-        vim.api.nvim_buf_add_highlight(self.state.bufnr, -1, 'TelescopePreviewLine', entry.lnum - 1, 0, -1)
+
+        if not self.state or not self.state.bufnr then
+          return
+        end
+
+        if not entry or not entry.filename then
+          return
+        end
+
+        local filepath = vim.fn.expand(entry.filename)
+        if vim.fn.filereadable(filepath) == 1 then
+
+          if not self.state.preview then
+            self.state.preview = true
+          end
+          conf.buffer_previewer_maker(filepath, self.state.bufnr, status)
+          vim.api.nvim_buf_add_highlight(self.state.bufnr, -1, 'TelescopePreviewLine', entry.lnum - 1, 0, -1)
+        else
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, { "File not readable: " .. filepath })
+        end
       end,
     }),
     sorter = conf.generic_sorter(opts),
@@ -114,6 +132,19 @@ function lazygrep.search_docs(opts)
     },
     previewer = previewers.new_buffer_previewer({
       define_preview = function(self, entry, status)
+
+        if not self.state or not self.state.bufnr then
+          return
+        end
+
+        if not entry or not entry.filename then
+          return
+        end
+
+        if not self.state.preview then
+          self.state.preview = true
+        end
+        
         conf.buffer_previewer_maker(entry.filename, self.state.bufnr, status)
         vim.api.nvim_buf_add_highlight(self.state.bufnr, -1, 'TelescopePreviewLine', entry.lnum - 1, 0, -1)
       end,

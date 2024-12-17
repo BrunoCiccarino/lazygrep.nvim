@@ -75,3 +75,4 @@ Explore the Neovim docs
 
 Use `:LazyGrepDocs` to search the official Neovim help files for commands, options, or keyboard shortcuts. Never be lost again!
 
+<video src="./img/lazygrepdocs.mp4">
