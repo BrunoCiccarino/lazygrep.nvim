@@ -35,6 +35,25 @@ local function search_files_with_regex(search_term)
   return results
 end
 
+local function search_docs_with_regex(search_term)
+  local results = {}
+  local runtime_docs = vim.api.nvim_get_runtime_file("doc/*.txt", true)
+
+  for _, doc in ipairs(runtime_docs) do
+    for line_number, line in ipairs(vim.fn.readfile(doc)) do
+      if line:find(search_term) then
+        table.insert(results, {
+          filename = doc,
+          lnum = line_number,
+          text = line,
+        })
+      end
+    end
+  end
+
+  return results
+end
+
 function lazygrep.search(opts)
   opts = opts or {}
 
@@ -71,6 +90,42 @@ function lazygrep.search(opts)
   }):find()
 end
 
+function lazygrep.search_docs(opts)
+  opts = opts or {}
+
+  pickers.new(opts, {
+    prompt_title = 'LazyGrep Docs (Type to search)',
+    finder = finders.new_dynamic {
+      entry_maker = function(entry)
+        return {
+          value = entry,
+          display = string.format('%s:%d: %s', Path:new(entry.filename):make_relative(), entry.lnum, entry.text),
+          ordinal = entry.filename .. ' ' .. entry.text,
+          filename = entry.filename,
+          lnum = entry.lnum,
+        }
+      end,
+      fn = function(prompt)
+        if not prompt or prompt == "" then
+          return {}
+        end
+        return search_docs_with_regex(prompt)
+      end,
+    },
+    previewer = previewers.new_buffer_previewer({
+      define_preview = function(self, entry, status)
+        conf.buffer_previewer_maker(entry.filename, self.state.bufnr, status)
+        vim.api.nvim_buf_add_highlight(self.state.bufnr, -1, 'TelescopePreviewLine', entry.lnum - 1, 0, -1)
+      end,
+    }),
+    sorter = conf.generic_sorter(opts),
+    attach_mappings = function(_, map)
+      map('i', '<CR>', actions.select_default + actions.center)
+      return true
+    end,
+  }):find()
+end
+
 function lazygrep.setup(opts)
   opts = opts or {}
   lazygrep.default_opts = opts
@@ -81,7 +136,14 @@ function lazygrep.setup(opts)
   end, {
     nargs = '*',
   })
+
+  vim.api.nvim_create_user_command('LazyGrepDocs', function(args)
+    lazygrep.search_docs({
+      search_term = table.concat(args.fargs, ' '),
+    })
+  end, {
+    nargs = '*',
+  })
 end
 
 return lazygrep
-
